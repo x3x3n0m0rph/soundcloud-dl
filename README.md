@@ -39,16 +39,16 @@ Make sure to read the help menu.
 
 ```
 Usage:
-  soundclound-dl <url> [flags]
+  soundcloud-dl <url> [flags]
 
 Flags:
   -b, --best                   Download with the best available quality.
   -f, --force                  Overwrite existing files.
   -p, --download-path string   The download path where tracks are stored. (default "/home/none/Things/github/soundcloud-dl")
-  -h, --help                   help for sc
+  -h, --help                   help for soundcloud-dl
   -s, --search-and-download    Search for tracks by title and prompt one for download 
       --socks-proxy string     SOCKS5 proxy connection string, for example socks5://user:pass@host:1080.
-  -v, --version                version for sc
+  -v, --version                version for soundcloud-dl
 ```
 
 Notes : `-s` can't work with a `url` passed.
@@ -56,7 +56,7 @@ Notes : `-s` can't work with a `url` passed.
 SOCKS5 proxy can be passed as a connection string:
 
 ```
-sc <url> --socks-proxy "socks5://user:pass@host:8888"
+soundcloud-dl <url> --socks-proxy "socks5://user:pass@host:8888"
 ```
 
 - **Download through a given URL**

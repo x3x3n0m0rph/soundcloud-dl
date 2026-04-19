@@ -8,12 +8,12 @@ run:
 	rm -f download/*
 	go run main.go ${PL_URL} --download-path ${DL_PATH}
 build:
-	go build -o bin/sc-dl main.go
+	go build -o bin/soundcloud-dl main.go
 test:
 	go test ./pkg/* -v # No tests for now
 install:
 	go install
 compile:
 	echo "Compiling for multiple Platforms"
-	GOOS=linux GOARCH=386 go build -o bin/sc-dl-linux main.go
-	GOOS=windows GOARCH=386 go build -o bin/sc-dl-windoos main.go
+	GOOS=linux GOARCH=386 go build -o bin/soundcloud-dl-linux main.go
+	GOOS=windows GOARCH=386 go build -o bin/soundcloud-dl-windows main.go
