@@ -28,7 +28,7 @@ A simple CLI app written in GO used to download sound-tracks from soundcloud wit
 
 There are multiple ways to install, the easiest is :
 ```
-go install github.com/AYehia0/soundcloud-dl@latest
+go install github.com/x3x3n0m0rph/soundcloud-dl@latest
 ```
 other way is to grab is the source code and build.
 
@@ -38,7 +38,7 @@ Make sure to read the help menu.
 
 ```
 Usage:
-  sc <url> [flags]
+  soundclound-dl <url> [flags]
 
 Flags:
   -b, --best                   Download with the best available quality.
@@ -55,7 +55,7 @@ Notes : `-s` can't work with a `url` passed.
 SOCKS5 proxy can be passed as a connection string:
 
 ```
-sc <url> --socks-proxy "$(cat socks.url)"
+sc <url> --socks-proxy "socks5://user:pass@host:8888"
 ```
 
 - **Download through a given URL**
