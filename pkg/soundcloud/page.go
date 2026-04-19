@@ -57,18 +57,18 @@ func GetClientId(url string) string {
 	}
 
 	// making a GET request to find the client_id
-	resp, err := http.Get(apiurl)
+	resp, err := client.GetResponse(apiurl)
 	if err != nil {
 		fmt.Printf("Something went wrong while requesting : %s , Error : %s", apiurl, err)
+		return ""
 	}
+	defer resp.Body.Close()
 
 	// reading the body
 	bodyData, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	defer resp.Body.Close()
 
 	// search for the client_id
 	pattern := ",client_id:\"([^\"]*?.[^\"]*?)\""

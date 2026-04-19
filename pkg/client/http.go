@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 )
 
@@ -14,37 +15,65 @@ type HTTP struct {
 	client *http.Client
 }
 
-// timeout the http request to a level and sets a proxy is passed
-func New(timeout time.Duration, proxy string) (*HTTP, error) {
-	httpConn := &HTTP{
-		client: http.DefaultClient,
+var (
+	defaultTimeout = 30 * time.Second
+	activeClient   = &http.Client{Timeout: defaultTimeout}
+	clientMu       sync.RWMutex
+)
+
+func buildHTTPClient(timeout time.Duration, proxyURL string) (*http.Client, error) {
+	if timeout <= 0 {
+		timeout = defaultTimeout
 	}
 
-	if timeout > 0 {
-		httpConn.client.Timeout = timeout
-	}
+	transport := http.DefaultTransport.(*http.Transport).Clone()
 
-	if proxy != "" {
-		// parse the url
-		proxy, err := url.Parse(proxy)
-
+	if proxyURL != "" {
+		proxy, err := url.Parse(proxyURL)
 		if err != nil {
 			return nil, err
 		}
-
-		t := http.DefaultTransport.(*http.Transport)
-		t.Proxy = func(*http.Request) (*url.URL, error) {
-			return proxy, nil
-		}
-		httpConn.client.Transport = t
+		transport.Proxy = http.ProxyURL(proxy)
 	}
 
-	return httpConn, nil
+	return &http.Client{
+		Timeout:   timeout,
+		Transport: transport,
+	}, nil
+}
+
+func Configure(proxyURL string) error {
+	client, err := buildHTTPClient(defaultTimeout, proxyURL)
+	if err != nil {
+		return err
+	}
+
+	clientMu.Lock()
+	activeClient = client
+	clientMu.Unlock()
+
+	return nil
+}
+
+func currentClient() *http.Client {
+	clientMu.RLock()
+	defer clientMu.RUnlock()
+	return activeClient
+}
+
+// timeout the http request to a level and sets a proxy is passed
+func New(timeout time.Duration, proxy string) (*HTTP, error) {
+	client, err := buildHTTPClient(timeout, proxy)
+	if err != nil {
+		return nil, err
+	}
+
+	return &HTTP{client: client}, nil
 }
 
 // make a GET request and return some info about the request
 func Get(url string) (int, []byte, error) {
-	resp, err := http.Get(url)
+	resp, err := GetResponse(url)
 
 	if err != nil {
 		return -1, nil, err
@@ -60,4 +89,8 @@ func Get(url string) (int, []byte, error) {
 	}
 
 	return resp.StatusCode, bodyBytes, nil
+}
+
+func GetResponse(url string) (*http.Response, error) {
+	return currentClient().Get(url)
 }

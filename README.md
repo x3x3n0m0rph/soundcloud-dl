@@ -45,10 +45,17 @@ Flags:
   -p, --download-path string   The download path where tracks are stored. (default "/home/none/Things/github/soundcloud-dl")
   -h, --help                   help for sc
   -s, --search-and-download    Search for tracks by title and prompt one for download 
+      --socks-proxy string     SOCKS5 proxy connection string, for example socks5://user:pass@host:1080.
   -v, --version                version for sc
 ```
 
 Notes : `-s` can't work with a `url` passed.
+
+SOCKS5 proxy can be passed as a connection string:
+
+```
+sc <url> --socks-proxy "$(cat socks.url)"
+```
 
 - **Download through a given URL**
 <p align="center">

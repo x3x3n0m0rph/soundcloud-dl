@@ -4,13 +4,13 @@ package soundcloud
 import (
 	"errors"
 	"io"
-	"net/http"
 	"os"
 	"os/user"
 	"path"
 	"path/filepath"
 	"sync"
 
+	"github.com/AYehia0/soundcloud-dl/pkg/client"
 	m "github.com/grafov/m3u8"
 	bar "github.com/schollz/progressbar/v3"
 )
@@ -41,7 +41,7 @@ func fileExists(path string) bool {
 // extract the urls of the individual segment and then steam/download.
 func downloadSeg(wg *sync.WaitGroup, segmentURI string, file *os.File, dlbar *bar.ProgressBar) {
 	defer wg.Done()
-	resp, err := http.Get(segmentURI)
+	resp, err := client.GetResponse(segmentURI)
 
 	if err != nil {
 		return
@@ -86,7 +86,8 @@ func getSegments(body io.Reader) []string {
 // using the goroutine to download each segment concurrently and wait till all finished
 func DownloadM3u8(filepath string, dlbar *bar.ProgressBar, segments []string) error {
 
-	file, _ := os.OpenFile(filepath, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	file, _ := os.OpenFile(filepath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	defer file.Close()
 
 	// the go routine now
 	var wg sync.WaitGroup
@@ -122,7 +123,7 @@ func Download(track DownloadTrack, dlpath string) string {
 	// check if the track is hls
 	if track.Quality != "low" {
 
-		resp, err := http.Get(track.Url)
+		resp, err := client.GetResponse(track.Url)
 		if err != nil {
 			return ""
 		}
@@ -137,7 +138,7 @@ func Download(track DownloadTrack, dlpath string) string {
 
 		return path
 	}
-	resp, err := http.Get(track.Url)
+	resp, err := client.GetResponse(track.Url)
 
 	if err != nil {
 		return ""

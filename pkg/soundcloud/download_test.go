@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"testing"
 
@@ -140,7 +141,12 @@ func TestDownloadM3u8(t *testing.T) {
 	defer testServer.Close()
 
 	segmentURIs := make([]string, 0)
+	keys := make([]int, 0, len(segments))
 	for k := range segments {
+		keys = append(keys, k)
+	}
+	sort.Ints(keys)
+	for _, k := range keys {
 		segmentURIs = append(segmentURIs, testServer.URL+"/"+strconv.Itoa(k))
 	}
 	soundcloud.DownloadM3u8(path, nil, segmentURIs)

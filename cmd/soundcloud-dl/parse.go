@@ -30,7 +30,7 @@ var rootCmd = &cobra.Command{
 		}
 		// run the core app
 		// FIXME: Probably not the best thing to do lol, it's better to just pass it to the function, who cares.
-		internal.Sc(args, DownloadPath, BestQuality, Search)
+		internal.Sc(args, DownloadPath, BestQuality, Search, SocksProxy)
 	},
 	PreRun: func(cmd *cobra.Command, args []string) {
 		cmd.Flags().Visit(func(f *pflag.Flag) {

@@ -5,6 +5,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/AYehia0/soundcloud-dl/pkg/client"
 	"github.com/AYehia0/soundcloud-dl/pkg/soundcloud"
 	"github.com/AYehia0/soundcloud-dl/pkg/theme"
 )
@@ -16,7 +17,13 @@ var (
 	offset         = 0
 )
 
-func Sc(args []string, downloadPath string, bestQuality bool, search bool) {
+func Sc(args []string, downloadPath string, bestQuality bool, search bool, socksProxy string) {
+	if socksProxy != "" {
+		if err := client.Configure(socksProxy); err != nil {
+			fmt.Printf("Invalid SOCKS5 proxy URL: %s\n", err)
+			return
+		}
+	}
 
 	url := ""
 	if len(args) > 0 {
