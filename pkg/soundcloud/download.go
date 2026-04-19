@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"os/user"
-	"path"
 	"path/filepath"
 	"sync"
 
@@ -96,29 +95,33 @@ func DownloadM3u8(filepath string, dlbar *bar.ProgressBar, segments []string) er
 		wg.Add(1)
 		downloadSeg(&wg, segment, file, dlbar)
 	}
+	wg.Wait()
 
 	return nil
 }
 
 // before download validation
 // return the path if everything is alright.
-func validateDownload(dlpath string, trackName string) string {
+func validateDownload(dlpath string, trackName string, force bool) string {
 
-	testPath := path.Join(dlpath, trackName)
+	testPath := filepath.Join(dlpath, trackName)
 	path, err := expandPath(testPath)
 
 	// TODO: handle all different kind of errors
-	if fileExists(path) || err != nil {
+	if err != nil || (!force && fileExists(path)) {
 		return ""
 	}
 	return path
 }
 
 // download the track
-func Download(track DownloadTrack, dlpath string) string {
+func Download(track DownloadTrack, dlpath string, force bool) string {
 	// TODO: Prompt Y/N if the file exists and rename by adding _<random/date>.<ext>
 	trackName := track.SoundData.Title + "[" + track.Quality + "]." + track.Ext
-	path := validateDownload(dlpath, trackName)
+	path := validateDownload(dlpath, trackName, force)
+	if path == "" {
+		return ""
+	}
 
 	// check if the track is hls
 	if track.Quality != "low" {
@@ -146,7 +149,7 @@ func Download(track DownloadTrack, dlpath string) string {
 	defer resp.Body.Close()
 
 	// check if the file exists
-	f, _ := os.OpenFile(path, os.O_CREATE|os.O_WRONLY, 0644)
+	f, _ := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
 	defer f.Close()
 
 	bar := bar.DefaultBytes(

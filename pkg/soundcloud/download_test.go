@@ -40,7 +40,7 @@ func TestDownload(t *testing.T) {
 		},
 	}
 
-	expectedPath := soundcloud.Download(downloadTrack, path)
+	expectedPath := soundcloud.Download(downloadTrack, path, false)
 
 	// read the downloaded file
 	file, err := ioutil.ReadFile(expectedPath)
@@ -54,6 +54,47 @@ func TestDownload(t *testing.T) {
 
 	// remove the file
 	os.Remove(expectedPath)
+}
+
+func TestDownloadForceOverwritesExistingFile(t *testing.T) {
+	fileResp := []byte("new content")
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		res.Write(fileResp)
+	}))
+	defer testServer.Close()
+
+	path := t.TempDir()
+	downloadTrack := soundcloud.DownloadTrack{
+		Url:     testServer.URL,
+		Quality: "low",
+		Ext:     "mp3",
+		SoundData: &soundcloud.SoundData{
+			Title: "TestForce",
+		},
+	}
+
+	expectedPath := filepath.Join(path, "TestForce[low].mp3")
+	if err := os.WriteFile(expectedPath, []byte("old content"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	if gotPath := soundcloud.Download(downloadTrack, path, false); gotPath != "" {
+		t.Fatalf("expected existing file to be skipped without force, got %s", gotPath)
+	}
+
+	gotPath := soundcloud.Download(downloadTrack, path, true)
+	if gotPath != expectedPath {
+		t.Fatalf("expected overwritten path %s, got %s", expectedPath, gotPath)
+	}
+
+	file, err := os.ReadFile(expectedPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(file, fileResp) {
+		t.Fatalf("expected file to be overwritten")
+	}
 }
 
 func extractSegments(fileP []byte, testfile []byte) map[int][]byte {

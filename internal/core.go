@@ -2,6 +2,7 @@ package internal
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -17,7 +18,7 @@ var (
 	offset         = 0
 )
 
-func Sc(args []string, downloadPath string, bestQuality bool, search bool, socksProxy string) {
+func Sc(args []string, downloadPath string, bestQuality bool, search bool, socksProxy string, force bool) {
 	if socksProxy != "" {
 		if err := client.Configure(socksProxy); err != nil {
 			fmt.Printf("Invalid SOCKS5 proxy URL: %s\n", err)
@@ -63,6 +64,8 @@ func Sc(args []string, downloadPath string, bestQuality bool, search bool, socks
 	// check if the url is a playlist
 	if soundData.Kind == "playlist" {
 		var wg sync.WaitGroup
+		var savedFilesMu sync.Mutex
+		savedFiles := make([]string, 0)
 		plDownloadTracks := getPlaylistDownloadTracks(soundData, clientId)
 
 		for _, dlT := range plDownloadTracks {
@@ -74,26 +77,30 @@ func Sc(args []string, downloadPath string, bestQuality bool, search bool, socks
 				// bestQuality is true to avoid prompting the user for quality choosing each time and speed up
 				// TODO: get a single progress bar, this will require the use of "https://github.com/cheggaaa/pb" since the current pb doesn't support download pool (I think)
 				t := getTrack(dlT, true)
-				fp := soundcloud.Download(t, downloadPath)
+				fp := soundcloud.Download(t, downloadPath, force)
 
 				// silent indication of already existing files
 				if fp == "" {
 					return
 				}
 				soundcloud.AddMetadata(t, fp)
+				savedFilesMu.Lock()
+				savedFiles = append(savedFiles, fp)
+				savedFilesMu.Unlock()
 
 			}(dlT)
 		}
 		wg.Wait()
 
 		fmt.Printf("\n%s Playlist saved to : %s\n", theme.Green("[-]"), theme.Magenta(downloadPath))
+		printSavedFiles(savedFiles)
 		return
 	}
 
 	downloadTracks := soundcloud.GetFormattedDL(soundData, clientId)
 
 	track := getTrack(downloadTracks, bestQuality)
-	filePath := soundcloud.Download(track, downloadPath)
+	filePath := soundcloud.Download(track, downloadPath, force)
 
 	// add tags
 	if filePath == "" {
@@ -105,4 +112,16 @@ func Sc(args []string, downloadPath string, bestQuality bool, search bool, socks
 		fmt.Printf("Error happend while adding tags to the track : %s\n", err)
 	}
 	fmt.Printf("\n%s Track saved to : %s\n", theme.Green("[-]"), theme.Magenta(filePath))
+	printSavedFiles([]string{filePath})
+}
+
+func printSavedFiles(filePaths []string) {
+	if len(filePaths) == 0 {
+		return
+	}
+
+	fmt.Printf("%s Saved files:\n", theme.Green("[+]"))
+	for _, filePath := range filePaths {
+		fmt.Printf("%s %s\n", theme.Green("[-]"), theme.Magenta(filepath.Base(filePath)))
+	}
 }
