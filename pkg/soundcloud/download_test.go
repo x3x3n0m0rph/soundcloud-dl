@@ -2,6 +2,7 @@ package soundcloud_test
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -40,7 +41,10 @@ func TestDownload(t *testing.T) {
 		},
 	}
 
-	expectedPath := soundcloud.Download(downloadTrack, path, false)
+	expectedPath, err := soundcloud.Download(downloadTrack, path, false)
+	if err != nil {
+		t.Fatalf("expected download to succeed: %s", err)
+	}
 
 	// read the downloaded file
 	file, err := ioutil.ReadFile(expectedPath)
@@ -79,11 +83,18 @@ func TestDownloadForceOverwritesExistingFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if gotPath := soundcloud.Download(downloadTrack, path, false); gotPath != "" {
+	gotPath, err := soundcloud.Download(downloadTrack, path, false)
+	if !errors.Is(err, soundcloud.ErrFileExists) {
+		t.Fatalf("expected existing file to be skipped without force, got path %s and error %v", gotPath, err)
+	}
+	if gotPath != "" {
 		t.Fatalf("expected existing file to be skipped without force, got %s", gotPath)
 	}
 
-	gotPath := soundcloud.Download(downloadTrack, path, true)
+	gotPath, err = soundcloud.Download(downloadTrack, path, true)
+	if err != nil {
+		t.Fatalf("expected force download to succeed: %s", err)
+	}
 	if gotPath != expectedPath {
 		t.Fatalf("expected overwritten path %s, got %s", expectedPath, gotPath)
 	}

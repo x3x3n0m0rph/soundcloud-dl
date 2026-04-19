@@ -92,7 +92,7 @@ func GetFormattedDL(track *SoundData, clientId string) []DownloadTrack {
 
 			url := tcode.ApiUrl + "?client_id=" + clientId
 			statusCode, body, err := client.Get(url)
-			if err != nil && statusCode != http.StatusOK {
+			if err != nil || statusCode != http.StatusOK {
 				return
 			}
 			q := mapQuality(tcode.ApiUrl, tcode.Format.MimeType)
@@ -103,6 +103,9 @@ func GetFormattedDL(track *SoundData, clientId string) []DownloadTrack {
 			dec := json.NewDecoder(bytes.NewReader(body))
 			if err := dec.Decode(&mediaUrl); err != nil {
 				log.Println("Error decoding json: ", err)
+				return
+			}
+			if mediaUrl.Url == "" {
 				return
 			}
 			tmpTrack := DownloadTrack{
@@ -134,7 +137,7 @@ func SearchTracksByKeyword(apiUrl string, keyword string, offset int, clientId s
 
 	statusCode, body, err := client.Get(apiUrl)
 
-	if err != nil && statusCode != http.StatusOK {
+	if err != nil || statusCode != http.StatusOK {
 		return nil
 	}
 

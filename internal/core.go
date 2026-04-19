@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -74,13 +75,20 @@ func Sc(args []string, downloadPath string, bestQuality bool, search bool, socks
 
 			go func(dlT []soundcloud.DownloadTrack) {
 				defer wg.Done()
+				if len(dlT) == 0 {
+					fmt.Println("No downloadable media URLs were returned by SoundCloud.")
+					return
+				}
 				// bestQuality is true to avoid prompting the user for quality choosing each time and speed up
 				// TODO: get a single progress bar, this will require the use of "https://github.com/cheggaaa/pb" since the current pb doesn't support download pool (I think)
 				t := getTrack(dlT, true)
-				fp := soundcloud.Download(t, downloadPath, force)
+				fp, err := soundcloud.Download(t, downloadPath, force)
 
-				// silent indication of already existing files
-				if fp == "" {
+				if errors.Is(err, soundcloud.ErrFileExists) {
+					return
+				}
+				if err != nil {
+					fmt.Printf("Error happened while downloading track: %s\n", err)
 					return
 				}
 				soundcloud.AddMetadata(t, fp)
@@ -98,16 +106,24 @@ func Sc(args []string, downloadPath string, bestQuality bool, search bool, socks
 	}
 
 	downloadTracks := soundcloud.GetFormattedDL(soundData, clientId)
+	if len(downloadTracks) == 0 {
+		fmt.Println("No downloadable media URLs were returned by SoundCloud.")
+		return
+	}
 
 	track := getTrack(downloadTracks, bestQuality)
-	filePath := soundcloud.Download(track, downloadPath, force)
+	filePath, err := soundcloud.Download(track, downloadPath, force)
 
 	// add tags
-	if filePath == "" {
+	if errors.Is(err, soundcloud.ErrFileExists) {
 		fmt.Printf("\n%s Track was already saved to : %s\n", theme.Green("[-]"), theme.Magenta(downloadPath))
 		return
 	}
-	err := soundcloud.AddMetadata(track, filePath)
+	if err != nil {
+		fmt.Printf("Error happened while downloading track: %s\n", err)
+		return
+	}
+	err = soundcloud.AddMetadata(track, filePath)
 	if err != nil {
 		fmt.Printf("Error happend while adding tags to the track : %s\n", err)
 	}

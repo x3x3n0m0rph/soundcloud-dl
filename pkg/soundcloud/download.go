@@ -3,16 +3,18 @@ package soundcloud
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/user"
 	"path/filepath"
-	"sync"
 
 	"github.com/AYehia0/soundcloud-dl/pkg/client"
 	m "github.com/grafov/m3u8"
 	bar "github.com/schollz/progressbar/v3"
 )
+
+var ErrFileExists = errors.New("file already exists")
 
 // expand the given path ~/Desktop to the current logged in user /home/<username>/Desktop
 func expandPath(path string) (string, error) {
@@ -38,12 +40,11 @@ func fileExists(path string) bool {
 }
 
 // extract the urls of the individual segment and then steam/download.
-func downloadSeg(wg *sync.WaitGroup, segmentURI string, file *os.File, dlbar *bar.ProgressBar) {
-	defer wg.Done()
+func downloadSeg(segmentURI string, file *os.File, dlbar *bar.ProgressBar) error {
 	resp, err := client.GetResponse(segmentURI)
 
 	if err != nil {
-		return
+		return err
 	}
 
 	defer resp.Body.Close()
@@ -56,9 +57,10 @@ func downloadSeg(wg *sync.WaitGroup, segmentURI string, file *os.File, dlbar *ba
 	}
 
 	if err != nil {
-		return
+		return err
 	}
 
+	return nil
 }
 
 func getSegments(body io.Reader) []string {
@@ -85,42 +87,49 @@ func getSegments(body io.Reader) []string {
 // using the goroutine to download each segment concurrently and wait till all finished
 func DownloadM3u8(filepath string, dlbar *bar.ProgressBar, segments []string) error {
 
-	file, _ := os.OpenFile(filepath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	file, err := os.OpenFile(filepath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
 	defer file.Close()
 
-	// the go routine now
-	var wg sync.WaitGroup
-
 	for _, segment := range segments {
-		wg.Add(1)
-		downloadSeg(&wg, segment, file, dlbar)
+		if err := downloadSeg(segment, file, dlbar); err != nil {
+			return fmt.Errorf("download segment %s: %w", segment, err)
+		}
 	}
-	wg.Wait()
 
 	return nil
 }
 
 // before download validation
 // return the path if everything is alright.
-func validateDownload(dlpath string, trackName string, force bool) string {
+func validateDownload(dlpath string, trackName string, force bool) (string, error) {
 
 	testPath := filepath.Join(dlpath, trackName)
 	path, err := expandPath(testPath)
 
 	// TODO: handle all different kind of errors
-	if err != nil || (!force && fileExists(path)) {
-		return ""
+	if err != nil {
+		return "", err
 	}
-	return path
+	if !force && fileExists(path) {
+		return "", ErrFileExists
+	}
+	return path, nil
 }
 
 // download the track
-func Download(track DownloadTrack, dlpath string, force bool) string {
+func Download(track DownloadTrack, dlpath string, force bool) (string, error) {
+	if track.Url == "" {
+		return "", errors.New("download URL is empty")
+	}
+
 	// TODO: Prompt Y/N if the file exists and rename by adding _<random/date>.<ext>
 	trackName := track.SoundData.Title + "[" + track.Quality + "]." + track.Ext
-	path := validateDownload(dlpath, trackName, force)
-	if path == "" {
-		return ""
+	path, err := validateDownload(dlpath, trackName, force)
+	if err != nil {
+		return "", err
 	}
 
 	// check if the track is hls
@@ -128,7 +137,7 @@ func Download(track DownloadTrack, dlpath string, force bool) string {
 
 		resp, err := client.GetResponse(track.Url)
 		if err != nil {
-			return ""
+			return "", err
 		}
 		defer resp.Body.Close()
 
@@ -137,19 +146,24 @@ func Download(track DownloadTrack, dlpath string, force bool) string {
 			"Downloading",
 		)
 		segments := getSegments(resp.Body)
-		DownloadM3u8(path, dlbar, segments)
+		if err := DownloadM3u8(path, dlbar, segments); err != nil {
+			return "", err
+		}
 
-		return path
+		return path, nil
 	}
 	resp, err := client.GetResponse(track.Url)
 
 	if err != nil {
-		return ""
+		return "", err
 	}
 	defer resp.Body.Close()
 
 	// check if the file exists
-	f, _ := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	f, err := os.OpenFile(path, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0644)
+	if err != nil {
+		return "", err
+	}
 	defer f.Close()
 
 	bar := bar.DefaultBytes(
@@ -157,7 +171,9 @@ func Download(track DownloadTrack, dlpath string, force bool) string {
 		"Downloading",
 	)
 
-	io.Copy(io.MultiWriter(f, bar), resp.Body)
+	if _, err := io.Copy(io.MultiWriter(f, bar), resp.Body); err != nil {
+		return "", err
+	}
 
-	return path
+	return path, nil
 }
