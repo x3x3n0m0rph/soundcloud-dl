@@ -7,6 +7,7 @@ SoundCloud-dl
 
 ![Go](https://img.shields.io/badge/go-%2300ADD8.svg?style=for-the-badge&logo=go&logoColor=white)
 ![Sound Cloud](https://img.shields.io/badge/sound%20cloud-FF5500?style=for-the-badge&logo=soundcloud&logoColor=white)
+[![AI Slop Inside](https://sladge.net/badge.svg)](https://sladge.net)
 
 </h1>
 
